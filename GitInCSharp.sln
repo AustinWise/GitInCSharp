@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitInCSharp", "GitInCSharp\GitInCSharp.csproj", "{A1377CF9-5FB3-4C35-8D2E-A1B78737A7D3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitInCSharpLib", "GitInCSharpLib\GitInCSharpLib.csproj", "{5FC2AB13-DF1E-4A15-9220-DF8DE306FF30}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1377CF9-5FB3-4C35-8D2E-A1B78737A7D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1377CF9-5FB3-4C35-8D2E-A1B78737A7D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1377CF9-5FB3-4C35-8D2E-A1B78737A7D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1377CF9-5FB3-4C35-8D2E-A1B78737A7D3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FC2AB13-DF1E-4A15-9220-DF8DE306FF30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FC2AB13-DF1E-4A15-9220-DF8DE306FF30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FC2AB13-DF1E-4A15-9220-DF8DE306FF30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FC2AB13-DF1E-4A15-9220-DF8DE306FF30}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
