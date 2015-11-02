@@ -50,58 +50,81 @@ namespace Austin.GitInCSharpLib
             return Encoding.ASCII.GetString(bytes.ToArray());
         }
 
-        byte[] readObjectContents(Stream s, int size)
-        {
-            byte[] buf = new byte[size];
-            if (s.Read(buf, 0, size) != size)
-                throw new Exception("Could not read it all.");
-            return buf;
-        }
-
         void inspectFile(FileInfo objectFi)
         {
             ObjectId objId = ObjectId.Parse(objectFi.Directory.Name + objectFi.Name);
 
-            //TODO: don't open twice
-            using (var fs = objectFi.OpenRead())
-            {
-                using (var inflater = new InflaterInputStream(fs))
-                {
-                    var sha = SHA1.Create();
-                    if (!objId.Equals(new ObjectId(sha.ComputeHash(inflater))))
-                        throw new Exception("Hash is not right!");
-                }
-            }
+            var sha = SHA1.Create();
+            string tag;
+            byte[] objectContents;
+
 
             using (var fs = objectFi.OpenRead())
             {
                 //TODO: apply some not-invented-here syndrom by reimplmenting inflate
                 using (var inflater = new InflaterInputStream(fs))
                 {
-                    string tag = readAsciiTo(inflater, ' ');
-                    int size = int.Parse(readAsciiTo(inflater, '\0'), NumberStyles.None, CultureInfo.InvariantCulture);
-                    Console.WriteLine("{0}: {1}", tag, size);
-
-                    switch (tag)
+                    int? spaceNdx = null;
+                    int headerBytesRead = 0;
+                    byte[] headerBytes = new byte[30]; //should be enough for a 64-bit size
+                    while (true)
                     {
-                        case "blob":
+                        int b = inflater.ReadByte();
+                        if (b == -1)
+                            throw new Exception("Unexpected EOF");
+
+                        headerBytes[headerBytesRead] = (byte)b;
+
+                        if (b == ' ')
+                            spaceNdx = headerBytesRead;
+
+                        headerBytesRead++;
+
+                        if (b == 0)
                             break;
-                        case "commit":
-                            inspectCommit(readObjectContents(inflater, size));
-                            break;
-                        case "tree":
-                            inspectTree(readObjectContents(inflater, size));
-                            break;
-                        default:
-                            throw new Exception("Unrecognized object type: " + tag);
+
+                        if (headerBytesRead == headerBytes.Length)
+                            throw new Exception("Header too big.");
                     }
+                    if (!spaceNdx.HasValue)
+                        throw new Exception("Did not find space.");
+
+                    //split the string along the space to get the object type and size and size
+                    tag = Encoding.ASCII.GetString(headerBytes, 0, spaceNdx.Value);
+                    string sizeStr = Encoding.ASCII.GetString(headerBytes, spaceNdx.Value + 1, headerBytesRead - spaceNdx.Value - 2);
+                    int objectSize = int.Parse(sizeStr, NumberStyles.None, CultureInfo.InvariantCulture);
+                    objectContents = new byte[objectSize];
+                    if (inflater.Read(objectContents, 0, objectSize) != objectSize)
+                        throw new Exception("Short read.");
+
+                    sha.TransformBlock(headerBytes, 0, headerBytesRead, null, 0);
                 }
+            }
+
+            sha.TransformFinalBlock(objectContents, 0, objectContents.Length);
+            if (!objId.Equals(new ObjectId(sha.Hash)))
+                throw new Exception("Hash is not right!");
+
+            Console.WriteLine("{0}: {1}", tag, objectContents.Length);
+
+            switch (tag)
+            {
+                case "blob":
+                    break;
+                case "commit":
+                    inspectCommit(objectContents);
+                    break;
+                case "tree":
+                    inspectTree(objectContents);
+                    break;
+                default:
+                    throw new Exception("Unrecognized object type: " + tag);
             }
         }
 
         class PersonTime
         {
-            static DateTime sEpoc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            static readonly DateTime sEpoc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
             PersonTime(string name, string email, DateTime time)
             {
@@ -158,9 +181,8 @@ namespace Austin.GitInCSharpLib
             PersonTime author = null;
             PersonTime committer = null;
 
-            string all = Encoding.UTF8.GetString(bytes);
-
             var mem = new MemoryStream(bytes);
+
             while (true)
             {
                 string line = readAsciiTo(mem, '\n');
