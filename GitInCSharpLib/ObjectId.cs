@@ -109,7 +109,7 @@ namespace Austin.GitInCSharpLib
             {
                 int b = s.ReadByte();
                 if (b == -1)
-                    throw new Exception("Unexpected new line.");
+                    throw new EndOfStreamException();
                 ret.Bytes[i] = (byte)b;
             }
             return ret;
