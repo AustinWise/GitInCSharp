@@ -68,6 +68,19 @@ namespace Austin.GitInCSharpLib
             return Encoding.ASCII.GetString(bytes.ToArray());
         }
 
+        enum PackObjectType
+        {
+            Undefined = 0,
+
+            Commit = 1,
+            Tree = 2,
+            Blob = 3,
+            Tag = 4,
+            //5 not used
+            OfsDelta = 6,
+            RefDelta = 7,
+        }
+
         void inspectPack(FileInfo packFi, FileInfo idxFi)
         {
             uint numberOfObjects;
@@ -90,17 +103,54 @@ namespace Austin.GitInCSharpLib
 
                 numberOfObjects = br.ReadUInt32();
 
+                //read the hash from the end
                 fs.Seek(-20, SeekOrigin.End);
-
                 var expectedHash = ObjectId.ReadFromStream(fs);
 
+                //check the hash
                 fs.Seek(0, SeekOrigin.Begin);
-
                 var sha = SHA1.Create();
                 var computedHash = new ObjectId(sha.ComputeHash(new SubsetStream(fs, fs.Length - 20)));
-
                 if (!computedHash.Equals(expectedHash))
                     throw new Exception("Bad pack.");
+
+                //see if the name of the file matches the hash
+                if (packFi.Name.Substring(0, 5) != "pack-")
+                    throw new Exception("Bad pack name.");
+                if (packFi.Name.Substring(5, 40).ToLowerInvariant() != expectedHash.IdStr.ToLowerInvariant())
+                    throw new Exception("Pack name did not match hash.");
+
+                fs.Seek(12, SeekOrigin.Begin);
+                while (fs.Position != fs.Length)
+                {
+                    byte b = br.ReadByte();
+                    var type = (PackObjectType)((b >> 4) & 0x7);
+                    int uncompressedSize = b & 0xf;
+                    int shift = 4;
+                    while ((b & 0x80) == 0x80)
+                    {
+                        if (shift >= 25)
+                            throw new Exception("Object size does nto fit in a 32-bit integer.");
+                        b = br.ReadByte();
+                        uncompressedSize |= ((b & 0x7f) << shift);
+                        shift += 7;
+                    }
+
+                    long before = fs.Position;
+
+                    byte[] decompressedObject = new byte[uncompressedSize];
+                    using (var inflator = new InflaterInputStream(fs))
+                    {
+                        var bytesRead = inflator.Read(decompressedObject, 0, uncompressedSize);
+                        if (uncompressedSize != bytesRead)
+                            throw new Exception("Short read.");
+                    }
+
+                    //SharpZipLib reads more bytes from the source stream than it really needs,
+                    //so we have to stop after the first object for now.
+                    //Addtionally, it closes the base stream when closed itself.
+                    break;
+                }
             }
             using (var fs = idxFi.OpenRead())
             {
@@ -131,8 +181,6 @@ namespace Austin.GitInCSharpLib
                 {
                     ids[i] = ObjectId.ReadFromStream(fs);
                 }
-
-                Console.WriteLine();
             }
         }
 
