@@ -16,10 +16,12 @@ namespace Austin.GitInCSharpLib
         readonly ObjectId[] mObjectIds;
         readonly uint[] mOffsets;
         readonly long[] mBigOffsets;
-        readonly FileStream mPackFile;
+        readonly FileInfo mPackFile;
 
         public PackFile(FileInfo packFi)
         {
+            mPackFile = packFi;
+
             string idxPath = packFi.FullName.Substring(0, packFi.FullName.Length - packFi.Extension.Length);
             idxPath += ".idx";
             var idxFi = new FileInfo(idxPath);
@@ -27,7 +29,6 @@ namespace Austin.GitInCSharpLib
                 throw new FileNotFoundException("Could not find index.");
 
             ObjectId packfileHash = ObjectId.Parse(packFi.Name.Substring(5, 40)); //pack-{hash}
-
             int numberOfObjects;
 
             using (var fs = packFi.OpenRead())
@@ -168,7 +169,6 @@ namespace Austin.GitInCSharpLib
                 }
             }
 
-            mPackFile = packFi.OpenRead();
         }
 
         public IEnumerable<ObjectId> EnumerateObjects()
@@ -182,14 +182,58 @@ namespace Austin.GitInCSharpLib
             return TryGetOffset(objId).HasValue;
         }
 
+        public Tuple<PackObjectType, byte[]> ReadObject(ObjectId objId)
+        {
+            long? offset = TryGetOffset(objId);
+            if (!offset.HasValue)
+                throw new Exception("Object id not found.");
+
+            using (var fs = mPackFile.OpenRead())
+            {
+                var br = new NetworkByteOrderBinaryReader(fs);
+
+                fs.Seek(offset.Value, SeekOrigin.Begin);
+
+                byte b = br.ReadByte();
+                var type = (PackObjectType)((b >> 4) & 0x7);
+                int uncompressedSize = b & 0xf;
+                int shift = 4;
+                while ((b & 0x80) == 0x80)
+                {
+                    if (shift >= 25)
+                        throw new Exception("Object size does nto fit in a 32-bit integer.");
+                    b = br.ReadByte();
+                    uncompressedSize |= ((b & 0x7f) << shift);
+                    shift += 7;
+                }
+
+                if (type != PackObjectType.Blob && type != PackObjectType.Commit && type != PackObjectType.Tree)
+                {
+                    throw new Exception("Deletas not impletemented.");
+                }
+
+                long before = fs.Position;
+
+                byte[] decompressedObject = new byte[uncompressedSize];
+                using (var inflator = new InflaterInputStream(fs))
+                {
+                    var bytesRead = inflator.Read(decompressedObject, 0, uncompressedSize);
+                    if (uncompressedSize != bytesRead)
+                        throw new Exception("Short read.");
+                }
+
+                return new Tuple<PackObjectType, byte[]>(type, decompressedObject);
+            }
+        }
+
         long? TryGetOffset(ObjectId objId)
         {
-            int lowerBound = mFanOut[objId.FirstByte];
-            int upperBound;
-            if (objId.FirstByte == 0xff)
-                upperBound = mObjectIds.Length;
+            int upperBound = mFanOut[objId.FirstByte];
+            int lowerBound;
+            if (objId.FirstByte == 0)
+                lowerBound = 0;
             else
-                upperBound = mFanOut[objId.FirstByte + 1];
+                lowerBound = mFanOut[objId.FirstByte - 1];
 
             int offset = Array.BinarySearch<ObjectId>(mObjectIds, lowerBound, upperBound - lowerBound, objId);
             if (offset < 0)

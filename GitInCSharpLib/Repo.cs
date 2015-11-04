@@ -68,6 +68,19 @@ namespace Austin.GitInCSharpLib
             }
         }
 
+        public Tuple<PackObjectType, byte[]> ReadObject(ObjectId objId)
+        {
+            foreach (var pack in mPackFiles)
+            {
+                if (pack.ContainsObject(objId))
+                    return pack.ReadObject(objId);
+            }
+            var looseFi = new FileInfo(Path.Combine(mObjectDir.FullName, objId.LooseFileName));
+            if (looseFi.Exists)
+                return readLooseObject(looseFi);
+            throw new Exception("Could not find object: " + objId.IdStr);
+        }
+
         //TODO: probably optimize this, looks like it could alloc a lot less GC memory.
         static string readAsciiTo(Stream s, char ch)
         {
@@ -84,14 +97,13 @@ namespace Austin.GitInCSharpLib
             return Encoding.ASCII.GetString(bytes.ToArray());
         }
 
-        void inspectLooseObject(FileInfo objectFi)
+        Tuple<PackObjectType, byte[]> readLooseObject(FileInfo objectFi)
         {
             ObjectId objId = ObjectId.Parse(objectFi.Directory.Name + objectFi.Name);
 
             var sha = SHA1.Create();
             string tag;
             byte[] objectContents;
-
 
             using (var fs = objectFi.OpenRead())
             {
@@ -141,19 +153,23 @@ namespace Austin.GitInCSharpLib
 
             Console.WriteLine("{0}: {1}", tag, objectContents.Length);
 
+            PackObjectType objType;
             switch (tag)
             {
                 case "blob":
+                    objType = PackObjectType.Blob;
                     break;
                 case "commit":
-                    inspectCommit(objectContents);
+                    objType = PackObjectType.Commit;
                     break;
                 case "tree":
-                    inspectTree(objectContents);
+                    objType = PackObjectType.Tree;
                     break;
                 default:
                     throw new Exception("Unrecognized object type: " + tag);
             }
+
+            return new Tuple<PackObjectType, byte[]>(objType, objectContents);
         }
 
         class PersonTime

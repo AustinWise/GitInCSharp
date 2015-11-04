@@ -12,6 +12,12 @@ namespace GitInCSharp
         static void Main(string[] args)
         {
             var repo = new Repo(Environment.CurrentDirectory);
+            var repo = new Repo(@"c:\src\austinwise.github.com\");
+            foreach (var objId in repo.EnumerateObjects())
+            {
+                var info = repo.ReadObject(objId);
+                Console.WriteLine("{0}: {1}", objId.IdStr, info.Item1);
+            }
         }
     }
 }

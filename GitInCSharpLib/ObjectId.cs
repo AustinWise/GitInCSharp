@@ -71,7 +71,7 @@ namespace Austin.GitInCSharpLib
             return sb.ToString();
         }
 
-        public byte FirstByte
+        internal byte FirstByte
         {
             get { return B0; }
         }
@@ -79,6 +79,24 @@ namespace Austin.GitInCSharpLib
         public string IdStr
         {
             get { return ToString(); }
+        }
+
+        internal string LooseFileName
+        {
+            get
+            {
+                var sb = new StringBuilder(SIZE * 2 + 1);
+                sb.Append(FirstByte.ToString("X2"));
+                sb.Append(Path.DirectorySeparatorChar);
+                fixed (byte* bPtr = Bytes)
+                {
+                    for (int i = 1; i < SIZE; i++)
+                    {
+                        sb.Append(bPtr[i].ToString("X2"));
+                    }
+                }
+                return sb.ToString();
+            }
         }
 
         public bool IsZero
