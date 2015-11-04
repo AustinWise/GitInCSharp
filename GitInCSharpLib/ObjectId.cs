@@ -10,13 +10,16 @@ using System.Threading.Tasks;
 namespace Austin.GitInCSharpLib
 {
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
-    unsafe struct ObjectId : IEquatable<ObjectId>
+    public unsafe struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     {
         const int SIZE = 20;
 
         //TODO: investigate if using bytes, ints, or longs is fastest for various operations
         [FieldOffset(0)]
         fixed byte Bytes[SIZE];
+
+        [FieldOffset(0)]
+        byte B0;
 
         [FieldOffset(0)]
         int I0;
@@ -43,7 +46,7 @@ namespace Austin.GitInCSharpLib
                 throw new ArgumentOutOfRangeException(nameof(bytes), "Expected " + SIZE + " bytes.");
 
             //make the compiler happy
-            L0 = L1 = I0 = I1 = I2 = I3 = I4 = 0;
+            L0 = L1 = I0 = I1 = I2 = I3 = I4 = B0 = 0;
 
             fixed (byte* ptr = this.Bytes)
             {
@@ -68,6 +71,11 @@ namespace Austin.GitInCSharpLib
             return sb.ToString();
         }
 
+        public byte FirstByte
+        {
+            get { return B0; }
+        }
+
         public string IdStr
         {
             get { return ToString(); }
@@ -79,6 +87,16 @@ namespace Austin.GitInCSharpLib
             {
                 return this.L0 == 0 && this.L1 == 0 && this.I4 == 0;
             }
+        }
+
+        public static bool operator ==(ObjectId a, ObjectId b)
+        {
+            return a.Equals(b);
+        }
+
+        public static bool operator !=(ObjectId a, ObjectId b)
+        {
+            return !a.Equals(b);
         }
 
         public bool Equals(ObjectId other)
@@ -97,6 +115,19 @@ namespace Austin.GitInCSharpLib
         public override int GetHashCode()
         {
             return I0 ^ I1 ^ I2 ^ I3 ^ I4;
+        }
+
+        public unsafe int CompareTo(ObjectId other)
+        {
+            fixed (byte* thisBytePtr = this.Bytes)
+            {
+                for (int i = 0; i < SIZE; i++)
+                {
+                    if (thisBytePtr[i] == other.Bytes[0])
+                        return thisBytePtr[i] - other.Bytes[0];
+                }
+            }
+            return 0;
         }
 
         public static ObjectId ReadFromStream(Stream s)

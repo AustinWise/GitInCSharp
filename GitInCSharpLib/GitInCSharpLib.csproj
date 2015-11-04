@@ -48,8 +48,11 @@
   <ItemGroup>
     <Compile Include="NetworkByteOrderBinaryReader.cs" />
     <Compile Include="ObjectId.cs" />
+    <Compile Include="PackFile.cs" />
+    <Compile Include="PackObjectType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repo.cs" />
+    <Compile Include="Sha1.cs" />
     <Compile Include="SubsetStream.cs" />
   </ItemGroup>
   <ItemGroup>
