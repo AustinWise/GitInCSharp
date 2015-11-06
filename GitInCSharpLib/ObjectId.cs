@@ -65,7 +65,7 @@ namespace Austin.GitInCSharpLib
                 for (int i = 0; i < SIZE; i++)
                 {
                     byte b = bPtr[i];
-                    sb.Append(b.ToString("X2", CultureInfo.InvariantCulture));
+                    sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
                 }
             }
             return sb.ToString();
@@ -86,13 +86,13 @@ namespace Austin.GitInCSharpLib
             get
             {
                 var sb = new StringBuilder(SIZE * 2 + 1);
-                sb.Append(FirstByte.ToString("X2"));
+                sb.Append(FirstByte.ToString("x2"));
                 sb.Append(Path.DirectorySeparatorChar);
                 fixed (byte* bPtr = Bytes)
                 {
                     for (int i = 1; i < SIZE; i++)
                     {
-                        sb.Append(bPtr[i].ToString("X2"));
+                        sb.Append(bPtr[i].ToString("x2"));
                     }
                 }
                 return sb.ToString();
@@ -141,8 +141,8 @@ namespace Austin.GitInCSharpLib
             {
                 for (int i = 0; i < SIZE; i++)
                 {
-                    if (thisBytePtr[i] == other.Bytes[0])
-                        return thisBytePtr[i] - other.Bytes[0];
+                    if (thisBytePtr[i] != other.Bytes[i])
+                        return thisBytePtr[i] - other.Bytes[i];
                 }
             }
             return 0;

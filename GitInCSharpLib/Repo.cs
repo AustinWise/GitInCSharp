@@ -151,8 +151,6 @@ namespace Austin.GitInCSharpLib
             if (!objId.Equals(new ObjectId(sha.Hash)))
                 throw new Exception("Hash is not right!");
 
-            Console.WriteLine("{0}: {1}", tag, objectContents.Length);
-
             PackObjectType objType;
             switch (tag)
             {

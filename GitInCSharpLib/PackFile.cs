@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -65,38 +66,6 @@ namespace Austin.GitInCSharpLib
                 var computedHash = Sha1.ComputeHash(new SubsetStream(fs, fs.Length - 20));
                 if (!computedHash.Equals(packfileHash))
                     throw new Exception("Hash of pack contents does match stored contents or filename.");
-
-                fs.Seek(12, SeekOrigin.Begin);
-                while (fs.Position != fs.Length)
-                {
-                    byte b = br.ReadByte();
-                    var type = (PackObjectType)((b >> 4) & 0x7);
-                    int uncompressedSize = b & 0xf;
-                    int shift = 4;
-                    while ((b & 0x80) == 0x80)
-                    {
-                        if (shift >= 25)
-                            throw new Exception("Object size does nto fit in a 32-bit integer.");
-                        b = br.ReadByte();
-                        uncompressedSize |= ((b & 0x7f) << shift);
-                        shift += 7;
-                    }
-
-                    long before = fs.Position;
-
-                    byte[] decompressedObject = new byte[uncompressedSize];
-                    using (var inflator = new InflaterInputStream(fs))
-                    {
-                        var bytesRead = inflator.Read(decompressedObject, 0, uncompressedSize);
-                        if (uncompressedSize != bytesRead)
-                            throw new Exception("Short read.");
-                    }
-
-                    //SharpZipLib reads more bytes from the source stream than it really needs,
-                    //so we have to stop after the first object for now.
-                    //Addtionally, it closes the base stream when closed itself.
-                    break;
-                }
             }
 
             mFanOut = new int[256];
@@ -188,11 +157,92 @@ namespace Austin.GitInCSharpLib
             if (!offset.HasValue)
                 throw new Exception("Object id not found.");
 
+            var ret = ReadObject(offset.Value);
+
+            //check hash
+            string header = string.Format(CultureInfo.InvariantCulture, "{0} {1}\0",
+                ret.Item1.ToString().ToLowerInvariant(), ret.Item2.Length);
+            byte[] headerBytes = Encoding.ASCII.GetBytes(header);
+            var sha = SHA1.Create();
+            sha.TransformBlock(headerBytes, 0, headerBytes.Length, null, 0);
+            sha.TransformFinalBlock(ret.Item2, 0, ret.Item2.Length);
+            var hash = new ObjectId(sha.Hash);
+            if (!hash.Equals(objId))
+                throw new Exception("Object from pack file does not have the right hash.");
+
+            return ret;
+        }
+
+        private int getDeltaHeaderSize(byte[] buf, ref int offset)
+        {
+            //TODO: overflow check on offset and maybe a better IndexOutOfBound message
+            byte cmd;
+            int i = 0;
+            int size = 0;
+            do
+            {
+                cmd = buf[offset++];
+                size |= (cmd & 0x7f) << i;
+                i += 7;
+            } while ((cmd & 0x80) == 0x80);
+            return size;
+        }
+
+        private byte[] applyDelta(byte[] basis, byte[] delta)
+        {
+            //TODO: maybe some range checking?
+
+            int offset = 0;
+
+            int basisSize = getDeltaHeaderSize(delta, ref offset);
+            if (basisSize != basis.Length)
+                throw new Exception("Wrong basis size.");
+
+            int finalSize = getDeltaHeaderSize(delta, ref offset);
+
+            byte[] ret = new byte[finalSize];
+            int retOffset = 0;
+
+            while (offset < delta.Length)
+            {
+                byte cmd = delta[offset++];
+                if ((cmd & 0x80) == 0x80)
+                {
+                    int copyOffset = 0;
+                    int copySize = 0;
+                    if ((cmd & 0x01) != 0) copyOffset = delta[offset++];
+                    if ((cmd & 0x02) != 0) copyOffset |= delta[offset++] << 8;
+                    if ((cmd & 0x04) != 0) copyOffset |= delta[offset++] << 16;
+                    if ((cmd & 0x08) != 0) copyOffset |= delta[offset++] << 24;
+                    if ((cmd & 0x10) != 0) copySize = delta[offset++];
+                    if ((cmd & 0x20) != 0) copySize |= delta[offset++] << 8;
+                    if ((cmd & 0x40) != 0) copySize |= delta[offset++] << 16;
+                    //TODO: overflow check
+                    Buffer.BlockCopy(basis, copyOffset, ret, retOffset, copySize);
+                    retOffset += copySize;
+                }
+                else if (cmd != 0)
+                {
+                    Buffer.BlockCopy(delta, offset, ret, retOffset, cmd);
+                    retOffset += cmd;
+                    offset += cmd;
+                }
+                else
+                {
+                    throw new Exception("Unexpected 0 cmd.");
+                }
+            }
+
+            return ret;
+        }
+
+        public Tuple<PackObjectType, byte[]> ReadObject(long offset)
+        {
             using (var fs = mPackFile.OpenRead())
             {
                 var br = new NetworkByteOrderBinaryReader(fs);
 
-                fs.Seek(offset.Value, SeekOrigin.Begin);
+                fs.Seek(offset, SeekOrigin.Begin);
 
                 byte b = br.ReadByte();
                 var type = (PackObjectType)((b >> 4) & 0x7);
@@ -207,12 +257,31 @@ namespace Austin.GitInCSharpLib
                     shift += 7;
                 }
 
-                if (type != PackObjectType.Blob && type != PackObjectType.Commit && type != PackObjectType.Tree)
-                {
-                    throw new Exception("Deletas not impletemented.");
-                }
+                Tuple<PackObjectType, byte[]> deltaBasis = null;
 
-                long before = fs.Position;
+                if (type == PackObjectType.OfsDelta)
+                {
+                    b = br.ReadByte();
+                    int basisOffset = b & 0x7f;
+                    while ((b & 0x80) == 0x80)
+                    {
+                        //TODO: check overflow
+                        basisOffset += 1;
+                        b = br.ReadByte();
+                        basisOffset <<= 7;
+                        basisOffset |= (b & 0x7f);
+                    }
+                    deltaBasis = ReadObject(offset - basisOffset);
+                }
+                else if (type == PackObjectType.RefDelta)
+                {
+                    var basisId = ObjectId.ReadFromStream(fs);
+                    deltaBasis = ReadObject(basisId);
+                }
+                else if (type != PackObjectType.Blob && type != PackObjectType.Commit && type != PackObjectType.Tree)
+                {
+                    throw new Exception("Unexpected object type: " + type);
+                }
 
                 byte[] decompressedObject = new byte[uncompressedSize];
                 using (var inflator = new InflaterInputStream(fs))
@@ -222,7 +291,10 @@ namespace Austin.GitInCSharpLib
                         throw new Exception("Short read.");
                 }
 
-                return new Tuple<PackObjectType, byte[]>(type, decompressedObject);
+                if (deltaBasis == null)
+                    return new Tuple<PackObjectType, byte[]>(type, decompressedObject);
+                else
+                    return new Tuple<PackObjectType, byte[]>(deltaBasis.Item1, applyDelta(deltaBasis.Item2, decompressedObject));
             }
         }
 
