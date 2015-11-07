@@ -46,14 +46,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Blob.cs" />
+    <Compile Include="Commit.cs" />
+    <Compile Include="GitObject.cs" />
     <Compile Include="NetworkByteOrderBinaryReader.cs" />
     <Compile Include="ObjectId.cs" />
     <Compile Include="PackFile.cs" />
     <Compile Include="PackObjectType.cs" />
+    <Compile Include="PersonTime.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repo.cs" />
     <Compile Include="Sha1.cs" />
     <Compile Include="SubsetStream.cs" />
+    <Compile Include="AnnotedTag.cs" />
+    <Compile Include="TextyObject.cs" />
+    <Compile Include="Tree.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

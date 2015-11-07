@@ -1,6 +1,6 @@
 ﻿namespace Austin.GitInCSharpLib
 {
-    public enum PackObjectType
+    enum PackObjectType
     {
         Undefined = 0,
 

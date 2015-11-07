@@ -278,7 +278,10 @@ namespace Austin.GitInCSharpLib
                     var basisId = ObjectId.ReadFromStream(fs);
                     deltaBasis = ReadObject(basisId);
                 }
-                else if (type != PackObjectType.Blob && type != PackObjectType.Commit && type != PackObjectType.Tree)
+                else if (type != PackObjectType.Blob
+                      && type != PackObjectType.Commit
+                      && type != PackObjectType.Tree
+                      && type != PackObjectType.Tag)
                 {
                     throw new Exception("Unexpected object type: " + type);
                 }

@@ -16,7 +16,7 @@ namespace GitInCSharp
             foreach (var objId in repo.EnumerateObjects())
             {
                 var info = repo.ReadObject(objId);
-                Console.WriteLine("{0}: {1}", objId.IdStr, info.Item1);
+                Console.WriteLine("{0}: {1}", objId.IdStr, info.ID);
             }
         }
     }

@@ -68,7 +68,7 @@ namespace Austin.GitInCSharpLib
             }
         }
 
-        public Tuple<PackObjectType, byte[]> ReadObject(ObjectId objId)
+        internal Tuple<PackObjectType, byte[]> ReadRawObject(ObjectId objId)
         {
             foreach (var pack in mPackFiles)
             {
@@ -79,6 +79,25 @@ namespace Austin.GitInCSharpLib
             if (looseFi.Exists)
                 return readLooseObject(looseFi);
             throw new Exception("Could not find object: " + objId.IdStr);
+        }
+
+        public GitObject ReadObject(ObjectId objId)
+        {
+            var contents = ReadRawObject(objId);
+            switch (contents.Item1)
+            {
+                case PackObjectType.Commit:
+                    return new Commit(this, objId, contents.Item2);
+                case PackObjectType.Tree:
+                    return new Tree(this, objId, contents.Item2);
+                case PackObjectType.Blob:
+                    return new Blob(this, objId, contents.Item2);
+                case PackObjectType.Tag:
+                    return new AnnotedTag(this, objId, contents.Item2);
+
+                default:
+                    throw new NotSupportedException("Unsupport object type: " + contents.Item1);
+            }
         }
 
         //TODO: probably optimize this, looks like it could alloc a lot less GC memory.
@@ -163,112 +182,14 @@ namespace Austin.GitInCSharpLib
                 case "tree":
                     objType = PackObjectType.Tree;
                     break;
+                case "tag":
+                    objType = PackObjectType.Tag;
+                    break;
                 default:
                     throw new Exception("Unrecognized object type: " + tag);
             }
 
             return new Tuple<PackObjectType, byte[]>(objType, objectContents);
-        }
-
-        class PersonTime
-        {
-            static readonly DateTime sEpoc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-            PersonTime(string name, string email, DateTime time)
-            {
-                this.Name = name;
-                this.Email = email;
-                this.Time = time;
-            }
-
-            public string Name { get; }
-            public string Email { get; }
-            public DateTime Time { get; }
-
-            public override string ToString()
-            {
-                return $"{Name} <{Email}> {Time:s}";
-            }
-
-            public static PersonTime Parse(string str)
-            {
-                if (str == null)
-                    throw new ArgumentNullException(nameof(str));
-
-                int openAngleBracket = str.IndexOf('<');
-                if (openAngleBracket == -1)
-                    throw new ArgumentNullException("Missing angle bracket.");
-                int closeAngleBracket = str.IndexOf('>', openAngleBracket + 1);
-                if (closeAngleBracket == -1)
-                    throw new Exception("Missing close angle breacket.");
-                if (str[openAngleBracket - 1] != ' ' || str[closeAngleBracket + 1] != ' ')
-                    throw new Exception("Missing spaces around email.");
-                int spaceNdx = str.IndexOf(' ', closeAngleBracket + 2);
-                if (spaceNdx == -1)
-                    throw new Exception("Could not find space between timespace and time zone.");
-
-                string name = str.Substring(0, openAngleBracket - 1);
-                string email = str.Substring(openAngleBracket + 1, closeAngleBracket - openAngleBracket - 1);
-                string timestampStr = str.Substring(closeAngleBracket + 2, spaceNdx - closeAngleBracket - 2);
-                string zoneOffsetStr = str.Substring(spaceNdx + 1);
-                DateTime time = sEpoc.AddSeconds(int.Parse(timestampStr, CultureInfo.InvariantCulture));
-                //TODO: do something with the time zone offset?
-                return new PersonTime(name, email, time);
-            }
-        }
-
-        void inspectCommit(byte[] bytes)
-        {
-            const string TREE_STR = "tree ";
-            const string PARENT_STR = "parent ";
-            const string AUTHOR_STR = "author ";
-            const string COMMITTER_STR = "committer ";
-
-            List<ObjectId> parents = new List<ObjectId>();
-            ObjectId tree = new ObjectId();
-            PersonTime author = null;
-            PersonTime committer = null;
-
-            var mem = new MemoryStream(bytes);
-
-            while (true)
-            {
-                string line = readAsciiTo(mem, '\n');
-                if (line.StartsWith(TREE_STR))
-                {
-                    if (!tree.IsZero)
-                        throw new Exception("Multiple trees found.");
-                    tree = ObjectId.Parse(line.Substring(TREE_STR.Length));
-                }
-                else if (line.StartsWith(PARENT_STR))
-                {
-                    parents.Add(ObjectId.Parse(line.Substring(PARENT_STR.Length)));
-                }
-                else if (line.StartsWith(AUTHOR_STR))
-                {
-                    if (author != null)
-                        throw new Exception("Multiple authors.");
-                    author = PersonTime.Parse(line.Substring(AUTHOR_STR.Length));
-                }
-                else if (line.StartsWith(COMMITTER_STR))
-                {
-                    if (committer != null)
-                        throw new Exception("Multiple committers.");
-                    committer = PersonTime.Parse(line.Substring(COMMITTER_STR.Length));
-                }
-
-                if (line.Length == 0)
-                    break;
-            }
-
-            string commitMessage = Encoding.UTF8.GetString(bytes, (int)mem.Position, (int)(mem.Length - mem.Position));
-            Console.WriteLine("\tAuthor: {0}", author);
-            Console.WriteLine("\tCommitter: {0}", committer);
-            Console.WriteLine("\tTree: {0}", tree);
-            foreach (var parent in parents)
-            {
-                Console.WriteLine("\tParent: {0}", parent.IdStr);
-            }
         }
 
         void inspectTree(byte[] bytes)
