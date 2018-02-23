@@ -217,6 +217,10 @@ namespace Austin.GitInCSharpLib
                     if ((cmd & 0x10) != 0) copySize = delta[offset++];
                     if ((cmd & 0x20) != 0) copySize |= delta[offset++] << 8;
                     if ((cmd & 0x40) != 0) copySize |= delta[offset++] << 16;
+
+                    if (copySize == 0)
+                        copySize = 0x10000;
+
                     //TODO: overflow check
                     Buffer.BlockCopy(basis, copyOffset, ret, retOffset, copySize);
                     retOffset += copySize;
