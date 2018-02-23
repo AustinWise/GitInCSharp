@@ -163,12 +163,14 @@ namespace Austin.GitInCSharpLib
             string header = string.Format(CultureInfo.InvariantCulture, "{0} {1}\0",
                 ret.Item1.ToString().ToLowerInvariant(), ret.Item2.Length);
             byte[] headerBytes = Encoding.ASCII.GetBytes(header);
-            var sha = SHA1.Create();
-            sha.TransformBlock(headerBytes, 0, headerBytes.Length, null, 0);
-            sha.TransformFinalBlock(ret.Item2, 0, ret.Item2.Length);
-            var hash = new ObjectId(sha.Hash);
-            if (!hash.Equals(objId))
-                throw new Exception("Object from pack file does not have the right hash.");
+            using (var sha = SHA1.Create())
+            {
+                sha.TransformBlock(headerBytes, 0, headerBytes.Length, null, 0);
+                sha.TransformFinalBlock(ret.Item2, 0, ret.Item2.Length);
+                var hash = new ObjectId(sha.Hash);
+                if (!hash.Equals(objId))
+                    throw new Exception("Object from pack file does not have the right hash.");
+            }
 
             return ret;
         }
