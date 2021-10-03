@@ -12,16 +12,19 @@ namespace Austin.GitInCSharpLib
             var dict = texty.Attributes.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             string tagType = dict["type"];
-            if (tagType != "commit")
-                throw new Exception("Tag type is not commit. Is that ok?");
+            if (tagType != "commit" && tagType != "tag")
+                throw new Exception($"Tag type is not commit. Is that ok? ObjectID: {objId} Type type: {tagType}");
 
 
-            Tree = ObjectId.Parse(dict["object"]);
+            Object = ObjectId.Parse(dict["object"]);
             Tagger = PersonTime.Parse(dict["tagger"]);
             TagDescription = texty.Body;
         }
 
-        public ObjectId Tree { get; }
+        /// <summary>
+        /// May be a commit or another tag.
+        /// </summary>
+        public ObjectId Object { get; }
         public string TagName { get; }
         public PersonTime Tagger { get; }
         public string TagDescription { get; }

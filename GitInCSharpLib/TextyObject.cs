@@ -5,7 +5,7 @@ using System.Text;
 namespace Austin.GitInCSharpLib
 {
     /// <summary>
-    /// Used as any intermeiate step in parsying objects who have a
+    /// Used as any intermediate step in parsing objects who have a
     /// textual representation, such as commits and tags.
     /// </summary>
     sealed class TextyObject
@@ -37,12 +37,13 @@ namespace Austin.GitInCSharpLib
 
                 if (objectContents[i] == '\n')
                 {
-                    if (i == previousLineEnd)
+                    byte next = objectContents[i + 1];
+                    if (next == ' ')
                     {
-                        //found two new lines in a row (or no attributes)
-                        previousLineEnd++;
-                        break;
+                        //multi line value
+                        continue;
                     }
+
                     if (!spaceNdx.HasValue)
                         throw new Exception("No space found.");
 
@@ -52,6 +53,13 @@ namespace Austin.GitInCSharpLib
 
                     previousLineEnd = i + 1;
                     spaceNdx = null;
+
+                    if (next == '\n')
+                    {
+                        //end of headers
+                        previousLineEnd++;
+                        break;
+                    }
                 }
             }
 

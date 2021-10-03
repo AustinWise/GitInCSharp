@@ -29,8 +29,14 @@ namespace Austin.GitInCSharpLib
                     case "committer":
                         Committer = PersonTime.Parse(kvp.Value);
                         break;
+                    case "gpgsig":
+                    case "mergetag":
+                        //TODO: unparsed headers
+                        break;
                     default:
-                        throw new Exception("Unexpected commit attribute: " + kvp.Key);
+                        Console.WriteLine(System.Text.Encoding.UTF8.GetString(objectContents));
+                        Console.WriteLine();
+                        throw new Exception("Unexpected commit attribute2: " + kvp.Key + Environment.NewLine + kvp.Value);
                 }
             }
         }
