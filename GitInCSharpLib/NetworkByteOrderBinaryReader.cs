@@ -28,60 +28,44 @@ namespace Austin.GitInCSharpLib
 
         public short ReadInt16()
         {
-            byte b0 = ReadByte();
-            byte b1 = ReadByte();
-            return (short)((b0 << 8) | b1);
-        }
-
-        public int ReadInt32()
-        {
-            byte b0 = ReadByte();
-            byte b1 = ReadByte();
-            byte b2 = ReadByte();
-            byte b3 = ReadByte();
-            return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
-        }
-
-        public long ReadInt64()
-        {
-            long b0 = ReadByte();
-            long b1 = ReadByte();
-            long b2 = ReadByte();
-            long b3 = ReadByte();
-            long b4 = ReadByte();
-            long b5 = ReadByte();
-            long b6 = ReadByte();
-            long b7 = ReadByte();
-            return (b0 << 56) | (b1 << 48) | (b2 << 40) | (b3 << 32) | (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
-        }
-
-        public ushort ReadUInt16()
-        {
-            byte b0 = ReadByte();
-            byte b1 = ReadByte();
-            return (ushort)((b0 << 8) | b1);
+            Span<byte> b = stackalloc byte[2];
+            int read = mStream.Read(b);
+            if (read != 2)
+                throw new EndOfStreamException();
+            return (short)(b[0] << 8 | b[1]);
         }
 
         public uint ReadUInt32()
         {
-            byte b0 = ReadByte();
-            byte b1 = ReadByte();
-            byte b2 = ReadByte();
-            byte b3 = ReadByte();
-            return (uint)((b0 << 24) | (b1 << 16) | (b2 << 8) | b3);
+            Span<byte> b = stackalloc byte[4];
+            int read = mStream.Read(b);
+            if (read != 4)
+                throw new EndOfStreamException();
+            return ((uint)b[0] << 24) | ((uint)b[1] << 16) | ((uint)b[2] << 8) | (uint)b[3];
         }
 
         public ulong ReadUInt64()
         {
-            ulong b0 = ReadByte();
-            ulong b1 = ReadByte();
-            ulong b2 = ReadByte();
-            ulong b3 = ReadByte();
-            ulong b4 = ReadByte();
-            ulong b5 = ReadByte();
-            ulong b6 = ReadByte();
-            ulong b7 = ReadByte();
-            return (b0 << 56) | (b1 << 48) | (b2 << 40) | (b3 << 32) | (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+            Span<byte> b = stackalloc byte[8];
+            int read = mStream.Read(b);
+            if (read != 8)
+                throw new EndOfStreamException();
+            return ((ulong)b[0] << 56) | ((ulong)b[1] << 48) | ((ulong)b[2] << 40) | ((ulong)b[3] << 32) | ((ulong)b[4] << 24) | ((ulong)b[5] << 16) | ((ulong)b[6] << 8) | (ulong)b[7];
+        }
+
+        public ushort ReadUInt16()
+        {
+            return unchecked((ushort)ReadInt16());
+        }
+
+        public int ReadInt32()
+        {
+            return unchecked((int)ReadUInt32());
+        }
+
+        public long ReadInt64()
+        {
+            return unchecked((long)ReadUInt64());
         }
     }
 }

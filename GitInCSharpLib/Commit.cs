@@ -31,6 +31,7 @@ namespace Austin.GitInCSharpLib
                         break;
                     case "gpgsig":
                     case "mergetag":
+                    case "encoding":
                         //TODO: unparsed headers
                         break;
                     default:
