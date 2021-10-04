@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Austin.GitInCSharpLib
 {
-    public class Repo
+    public class Repo : IDisposable
     {
         readonly List<PackFile> mPackFiles = new List<PackFile>();
         readonly DirectoryInfo mObjectDir;
@@ -204,6 +204,14 @@ namespace Austin.GitInCSharpLib
 
                 if (mem.Position == bytes.Length)
                     break;
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (var pack in mPackFiles)
+            {
+                pack.Dispose();
             }
         }
     }

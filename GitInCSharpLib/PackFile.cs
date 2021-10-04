@@ -11,17 +11,17 @@ using System.Threading.Tasks;
 
 namespace Austin.GitInCSharpLib
 {
-    class PackFile
+    class PackFile : IDisposable
     {
         readonly int[] mFanOut;
         readonly ObjectId[] mObjectIds;
         readonly uint[] mOffsets;
         readonly long[] mBigOffsets;
-        readonly FileInfo mPackFile;
+        readonly FileStream mPackFile;
 
         public PackFile(FileInfo packFi)
         {
-            mPackFile = packFi;
+            mPackFile = packFi.OpenRead();
 
             string idxPath = packFi.FullName.Substring(0, packFi.FullName.Length - packFi.Extension.Length);
             idxPath += ".idx";
@@ -244,11 +244,13 @@ namespace Austin.GitInCSharpLib
 
         public Tuple<PackObjectType, byte[]> ReadObject(long offset)
         {
-            using (var fs = mPackFile.OpenRead())
-            {
-                var br = new NetworkByteOrderBinaryReader(fs);
+            long oldPosition = mPackFile.Position;
 
-                fs.Seek(offset, SeekOrigin.Begin);
+            try
+            {
+                var br = new NetworkByteOrderBinaryReader(mPackFile);
+
+                mPackFile.Seek(offset, SeekOrigin.Begin);
 
                 byte b = br.ReadByte();
                 var type = (PackObjectType)((b >> 4) & 0x7);
@@ -281,20 +283,21 @@ namespace Austin.GitInCSharpLib
                 }
                 else if (type == PackObjectType.RefDelta)
                 {
-                    var basisId = ObjectId.ReadFromStream(fs);
+                    var basisId = ObjectId.ReadFromStream(mPackFile);
                     deltaBasis = ReadObject(basisId);
                 }
                 else if (type != PackObjectType.Blob
-                      && type != PackObjectType.Commit
-                      && type != PackObjectType.Tree
-                      && type != PackObjectType.Tag)
+                        && type != PackObjectType.Commit
+                        && type != PackObjectType.Tree
+                        && type != PackObjectType.Tag)
                 {
                     throw new Exception("Unexpected object type: " + type);
                 }
 
                 byte[] decompressedObject = new byte[uncompressedSize];
-                using (var inflator = new InflaterInputStream(fs))
+                using (var inflator = new InflaterInputStream(mPackFile))
                 {
+                    inflator.IsStreamOwner = false;
                     var bytesRead = inflator.Read(decompressedObject, 0, uncompressedSize);
                     if (uncompressedSize != bytesRead)
                         throw new Exception("Short read.");
@@ -304,6 +307,10 @@ namespace Austin.GitInCSharpLib
                     return new Tuple<PackObjectType, byte[]>(type, decompressedObject);
                 else
                     return new Tuple<PackObjectType, byte[]>(deltaBasis.Item1, applyDelta(deltaBasis.Item2, decompressedObject));
+            }
+            finally
+            {
+                mPackFile.Position = oldPosition;
             }
         }
 
@@ -333,6 +340,11 @@ namespace Austin.GitInCSharpLib
             }
 
             throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            mPackFile.Dispose();
         }
     }
 }

@@ -1,9 +1,5 @@
 ﻿using Austin.GitInCSharpLib;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GitInCSharp
 {
@@ -11,12 +7,20 @@ namespace GitInCSharp
     {
         static void Main(string[] args)
         {
+            int i = 0;
             // var repo = new Repo(Environment.CurrentDirectory);
-            var repo = new Repo(@"c:\src\awise.us\");
+            using var repo = new Repo(@"e:\externsrc\git");
             foreach (var objId in repo.EnumerateObjects())
             {
                 var info = repo.ReadObject(objId);
-                Console.WriteLine("{0}: {1}", objId.IdStr, info.ID);
+                // Console.WriteLine("{0}: {1}", objId.IdStr, info.ID);
+                // Console.Write('.');
+                i++;
+                if (i == 1024)
+                {
+                    i = 0;
+                    Console.Write('+');
+                }
             }
         }
     }
