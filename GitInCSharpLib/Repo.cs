@@ -68,7 +68,7 @@ namespace Austin.GitInCSharpLib
             }
         }
 
-        internal Tuple<PackObjectType, byte[]> ReadRawObject(ObjectId objId)
+        internal (PackObjectType, byte[]) ReadRawObject(ObjectId objId)
         {
             foreach (var pack in mPackFiles)
             {
@@ -116,11 +116,11 @@ namespace Austin.GitInCSharpLib
             return Encoding.ASCII.GetString(bytes.ToArray());
         }
 
-        Tuple<PackObjectType, byte[]> readLooseObject(FileInfo objectFi)
+        (PackObjectType, byte[]) readLooseObject(FileInfo objectFi)
         {
             ObjectId objId = ObjectId.Parse(objectFi.Directory.Name + objectFi.Name);
 
-            var sha = SHA1.Create();
+            using var sha = SHA1.Create();
             string tag;
             byte[] objectContents;
 
@@ -189,7 +189,7 @@ namespace Austin.GitInCSharpLib
                     throw new Exception("Unrecognized object type: " + tag);
             }
 
-            return new Tuple<PackObjectType, byte[]>(objType, objectContents);
+            return (objType, objectContents);
         }
 
         void inspectTree(byte[] bytes)

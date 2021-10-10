@@ -115,7 +115,6 @@ namespace Austin.GitInCSharpLib
                 for (int i = 0; i < numberOfObjects; i++)
                 {
                     mObjectIds[i] = ObjectId.ReadFromStream(fs);
-                    //if (i != 0 && mObjectIds[i-1].c)
                 }
 
                 //skip past 
@@ -151,7 +150,7 @@ namespace Austin.GitInCSharpLib
             return TryGetOffset(objId).HasValue;
         }
 
-        public Tuple<PackObjectType, byte[]> ReadObject(ObjectId objId)
+        public (PackObjectType, byte[]) ReadObject(ObjectId objId)
         {
             long? offset = TryGetOffset(objId);
             if (!offset.HasValue)
@@ -242,7 +241,7 @@ namespace Austin.GitInCSharpLib
             return ret;
         }
 
-        public Tuple<PackObjectType, byte[]> ReadObject(long offset)
+        public (PackObjectType, byte[]) ReadObject(long offset)
         {
             long oldPosition = mPackFile.Position;
 
@@ -265,7 +264,7 @@ namespace Austin.GitInCSharpLib
                     shift += 7;
                 }
 
-                Tuple<PackObjectType, byte[]> deltaBasis = null;
+                (PackObjectType, byte[]) deltaBasis = default;
 
                 if (type == PackObjectType.OfsDelta)
                 {
@@ -303,10 +302,10 @@ namespace Austin.GitInCSharpLib
                         throw new Exception("Short read.");
                 }
 
-                if (deltaBasis == null)
-                    return new Tuple<PackObjectType, byte[]>(type, decompressedObject);
+                if (deltaBasis.Item2 == null)
+                    return (type, decompressedObject);
                 else
-                    return new Tuple<PackObjectType, byte[]>(deltaBasis.Item1, applyDelta(deltaBasis.Item2, decompressedObject));
+                    return (deltaBasis.Item1, applyDelta(deltaBasis.Item2, decompressedObject));
             }
             finally
             {
