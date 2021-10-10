@@ -59,16 +59,10 @@ namespace Austin.GitInCSharpLib
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder(SIZE * 2);
-            fixed (byte* bPtr = this.Bytes)
+            fixed (byte* pBytes = this.Bytes)
             {
-                for (int i = 0; i < SIZE; i++)
-                {
-                    byte b = bPtr[i];
-                    sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-                }
+                return Convert.ToHexString(new ReadOnlySpan<byte>(pBytes, SIZE));
             }
-            return sb.ToString();
         }
 
         internal byte FirstByte
@@ -139,13 +133,8 @@ namespace Austin.GitInCSharpLib
         {
             fixed (byte* thisBytePtr = this.Bytes)
             {
-                for (int i = 0; i < SIZE; i++)
-                {
-                    if (thisBytePtr[i] != other.Bytes[i])
-                        return thisBytePtr[i] - other.Bytes[i];
-                }
+                return new ReadOnlySpan<byte>(thisBytePtr, SIZE).SequenceCompareTo(new ReadOnlySpan<byte>(other.Bytes, SIZE));
             }
-            return 0;
         }
 
         public static ObjectId ReadFromStream(Stream s)
@@ -154,17 +143,12 @@ namespace Austin.GitInCSharpLib
                 throw new ArgumentNullException(nameof(s));
 
             var ret = new ObjectId();
-            for (int i = 0; i < SIZE; i++)
-            {
-                int b = s.ReadByte();
-                if (b == -1)
-                    throw new EndOfStreamException();
-                ret.Bytes[i] = (byte)b;
-            }
+            int read = s.Read(new Span<byte>(ret.Bytes, SIZE));
+            if (read != SIZE)
+                throw new EndOfStreamException();
             return ret;
         }
 
-        //TODO: make this not allocate a ton
         public static ObjectId Parse(string str)
         {
             if (str == null)
@@ -175,7 +159,7 @@ namespace Austin.GitInCSharpLib
             var ret = new ObjectId();
             for (int i = 0; i < SIZE; i++)
             {
-                ret.Bytes[i] = Convert.ToByte(str.Substring(i * 2, 2), 16);
+                ret.Bytes[i] = byte.Parse(str.AsSpan().Slice(i * 2, 2), NumberStyles.HexNumber);
             }
             return ret;
         }
