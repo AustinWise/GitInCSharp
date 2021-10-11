@@ -100,22 +100,6 @@ namespace Austin.GitInCSharpLib
             }
         }
 
-        //TODO: probably optimize this, looks like it could alloc a lot less GC memory.
-        static string readAsciiTo(Stream s, char ch)
-        {
-            var bytes = new List<byte>();
-            while (true)
-            {
-                int b = s.ReadByte();
-                if (b == -1)
-                    throw new Exception("Unexpected EOF.");
-                if ((char)b == ch)
-                    break;
-                bytes.Add((byte)b);
-            }
-            return Encoding.ASCII.GetString(bytes.ToArray());
-        }
-
         (PackObjectType, byte[]) readLooseObject(FileInfo objectFi)
         {
             ObjectId objId = ObjectId.Parse(objectFi.Directory.Name + objectFi.Name);
@@ -190,21 +174,6 @@ namespace Austin.GitInCSharpLib
             }
 
             return (objType, objectContents);
-        }
-
-        void inspectTree(byte[] bytes)
-        {
-            var mem = new MemoryStream(bytes);
-            while (true)
-            {
-                int mode = Convert.ToInt32(readAsciiTo(mem, ' '), 8);
-                string fileName = readAsciiTo(mem, '\0'); //TODO: UTF-8 file names
-                ObjectId id = ObjectId.ReadFromStream(mem);
-                Console.WriteLine("\t{0,6} {1} {2}", Convert.ToString(mode, 8), id.IdStr, fileName);
-
-                if (mem.Position == bytes.Length)
-                    break;
-            }
         }
 
         public void Dispose()
