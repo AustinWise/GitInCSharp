@@ -96,7 +96,7 @@ namespace Austin.GitInCSharpLib
                     return new AnnotedTag(this, objId, contents.Item2);
 
                 default:
-                    throw new NotSupportedException("Unsupport object type: " + contents.Item1);
+                    throw new NotSupportedException("Unsupported object type: " + contents.Item1);
             }
         }
 

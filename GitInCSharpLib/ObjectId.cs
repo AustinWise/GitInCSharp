@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ namespace Austin.GitInCSharpLib
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
     public unsafe struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     {
-        const int SIZE = 20;
+        public const int SIZE = 20;
 
         //TODO: investigate if using bytes, ints, or longs is fastest for various operations
         [FieldOffset(0)]
@@ -38,22 +39,25 @@ namespace Austin.GitInCSharpLib
         long L1;
 
 
-        public ObjectId(byte[] bytes)
+        public ObjectId(ReadOnlySpan<byte> bytes)
         {
-            if (bytes == null)
-                throw new ArgumentNullException(nameof(bytes));
             if (bytes.Length != SIZE)
                 throw new ArgumentOutOfRangeException(nameof(bytes), "Expected " + SIZE + " bytes.");
 
             //make the compiler happy
-            L0 = L1 = I0 = I1 = I2 = I3 = I4 = B0 = 0;
+            Unsafe.SkipInit(out L0);
+            Unsafe.SkipInit(out L1);
+            Unsafe.SkipInit(out I0);
+            Unsafe.SkipInit(out I1);
+            Unsafe.SkipInit(out I2);
+            Unsafe.SkipInit(out I3);
+            Unsafe.SkipInit(out I4);
+            Unsafe.SkipInit(out B0);
 
+            // actually initialize contents
             fixed (byte* ptr = this.Bytes)
             {
-                for (int i = 0; i < SIZE; i++)
-                {
-                    ptr[i] = bytes[i];
-                }
+                bytes.CopyTo(new Span<byte>(ptr, SIZE));
             }
         }
 
